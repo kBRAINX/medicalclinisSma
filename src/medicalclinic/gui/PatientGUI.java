@@ -46,10 +46,11 @@ public class PatientGUI extends JFrame {
 
         // Setup the frame
         setTitle("Patient " + patientId + " - Cabinet Médical");
-        setSize(800, 600);
-        setMinimumSize(new Dimension(600, 400));
+        setSize(900, 800);
+        setMinimumSize(new Dimension(750, 600));
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
+        setResizable(true);
 
         // Add window listener to handle closing
         addWindowListener(new WindowAdapter() {
@@ -118,6 +119,24 @@ public class PatientGUI extends JFrame {
         });
         submitButton.setVisible(false);
 
+        // Créer un panneau pour contenir le formulaire et le bouton
+        JPanel formWithButtonPanel = new JPanel(new BorderLayout(0, 10));
+        formWithButtonPanel.setBackground(new Color(240, 240, 250));
+
+        // Créer un JScrollPane pour permettre le défilement du formulaire
+        JScrollPane formScrollPane = new JScrollPane(formPanel);
+        formScrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
+        formScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        formScrollPane.setBorder(null);
+
+        // Ajouter le formulaire et le bouton au panel
+        formWithButtonPanel.add(formScrollPane, BorderLayout.CENTER);
+
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        buttonPanel.setBackground(new Color(240, 240, 250));
+        buttonPanel.add(submitButton);
+        formWithButtonPanel.add(buttonPanel, BorderLayout.SOUTH);
+
         // Message panel
         messagePanel = new JPanel(new BorderLayout());
         messagePanel.setBorder(BorderFactory.createTitledBorder(
@@ -139,10 +158,15 @@ public class PatientGUI extends JFrame {
         messageScrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
         messagePanel.add(messageScrollPane, BorderLayout.CENTER);
 
+        // Utiliser un JSplitPane pour diviser l'espace entre le formulaire et les messages
+        JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
+        splitPane.setTopComponent(formWithButtonPanel);
+        splitPane.setBottomComponent(messagePanel);
+        splitPane.setResizeWeight(0.7); // 70% de l'espace pour le formulaire
+        splitPane.setOneTouchExpandable(true);
+
         // Add panels to content panel
-        contentPanel.add(formPanel, BorderLayout.NORTH);
-        contentPanel.add(submitButton, BorderLayout.CENTER);
-        contentPanel.add(messagePanel, BorderLayout.SOUTH);
+        contentPanel.add(splitPane, BorderLayout.CENTER);
 
         // Add all panels to main panel
         mainPanel.add(statusPanel, BorderLayout.NORTH);

@@ -82,6 +82,44 @@ public class DoctorAgent extends Agent {
         gui.displayMessage("Agent Médecin " + specialty + " prêt dans la salle " + roomNumber);
     }
 
+    // Méthode pour inviter le patient à venir dans la salle de consultation
+    private void invitePatientToConsultation() {
+        // Rechercher l'agent réceptionniste
+        DFAgentDescription template = new DFAgentDescription();
+        ServiceDescription sd = new ServiceDescription();
+        sd.setType("receptionist");
+        template.addServices(sd);
+
+        try {
+            DFAgentDescription[] result = DFService.search(this, template);
+            if (result.length > 0) {
+                AID receptionistAID = result[0].getName();
+
+                // Créer et configurer le message pour demander à la réceptionniste d'inviter le patient
+                ACLMessage msg = new ACLMessage(ACLMessage.REQUEST);
+                msg.addReceiver(receptionistAID);
+
+                // Créer un objet JSON avec les informations nécessaires
+                JsonObject requestInfo = new JsonObject();
+                requestInfo.addProperty("patientId", currentPatientRecord.getPatientId());
+                requestInfo.addProperty("doctorId", getLocalName());
+                requestInfo.addProperty("roomNumber", roomNumber);
+
+                msg.setContent(requestInfo.toString());
+                msg.setConversationId("invite-patient");
+                send(msg);
+
+                gui.displayMessage("Demande envoyée à la réceptionniste pour faire venir le patient " +
+                    currentPatientRecord.getPatientId() + " dans la salle " + roomNumber);
+            } else {
+                gui.displayMessage("Erreur: Réceptionniste non trouvée, impossible d'inviter le patient");
+            }
+        } catch (FIPAException fe) {
+            fe.printStackTrace();
+            gui.displayMessage("Erreur lors de la recherche de la réceptionniste: " + fe.getMessage());
+        }
+    }
+
     // Salue le patient
     private void greetPatient() {
         // Créer et configurer le message
@@ -192,6 +230,18 @@ public class DoctorAgent extends Agent {
         // Analyser les symptômes du dossier du patient
         HashMap<String, String> symptomsInfo = currentPatientRecord.getSymptomsInfo();
 
+        // Identifier les maladies possibles
+        List<Disease> possibleDiseases = DiseaseDatabase.getInstance().findDiseasesBySymptoms(symptomsInfo);
+        Disease probableDisease = null;
+
+        if (!possibleDiseases.isEmpty()) {
+            probableDisease = possibleDiseases.get(0);
+            diagnosis.append("Vous présentez les symptômes de " + probableDisease.getName() + ". ");
+            diagnosis.append(probableDisease.getDescription() + " ");
+        } else {
+            diagnosis.append("Vos symptômes ne correspondent pas clairement à une pathologie connue. ");
+        }
+
         // Analyser les réponses aux questions supplémentaires
         String medicalHistory = patientResponses.get("medicalHistory");
         String familyHistory = patientResponses.get("familyHistory");
@@ -202,13 +252,13 @@ public class DoctorAgent extends Agent {
             String heartRate = patientResponses.get("heartRate");
 
             if (chestPain != null && chestPain.toLowerCase().contains("oppression")) {
-                diagnosis.append("Possible angine de poitrine. ");
+                diagnosis.append("Les symptômes indiquent une possible angine de poitrine. ");
             }
             else if (heartRate != null && heartRate.toLowerCase().contains("palpitation")) {
-                diagnosis.append("Possible arythmie cardiaque. ");
+                diagnosis.append("Vos palpitations suggèrent une possible arythmie cardiaque. ");
             }
             else {
-                diagnosis.append("Trouble cardiaque à préciser. ");
+                diagnosis.append("Un trouble cardiaque à préciser. ");
             }
         }
         else if ("pneumologue".equals(specialty)) {
@@ -216,13 +266,13 @@ public class DoctorAgent extends Agent {
             String coughDetails = patientResponses.get("coughDetails");
 
             if (coughDetails != null && coughDetails.toLowerCase().contains("productive")) {
-                diagnosis.append("Possible bronchite. ");
+                diagnosis.append("Votre toux productive évoque une possible bronchite. ");
             }
             else if (breathingDifficulties != null && breathingDifficulties.toLowerCase().contains("effort")) {
-                diagnosis.append("Possible asthme d'effort. ");
+                diagnosis.append("Vos difficultés respiratoires à l'effort suggèrent un possible asthme d'effort. ");
             }
             else {
-                diagnosis.append("Affection respiratoire à préciser. ");
+                diagnosis.append("Une affection respiratoire à préciser. ");
             }
         }
         else if ("gastroenterologue".equals(specialty)) {
@@ -230,22 +280,22 @@ public class DoctorAgent extends Agent {
             String dietaryHabits = patientResponses.get("dietaryHabits");
 
             if (digestionIssues != null && digestionIssues.toLowerCase().contains("brûlure")) {
-                diagnosis.append("Possible reflux gastro-œsophagien. ");
+                diagnosis.append("Vos symptômes évoquent un possible reflux gastro-œsophagien. ");
             }
             else if (digestionIssues != null && digestionIssues.toLowerCase().contains("douleur")) {
-                diagnosis.append("Possible syndrome du côlon irritable. ");
+                diagnosis.append("Vos douleurs abdominales suggèrent un possible syndrome du côlon irritable. ");
             }
             else {
-                diagnosis.append("Trouble digestif à préciser. ");
+                diagnosis.append("Un trouble digestif à préciser. ");
             }
         }
         else {
             // Médecin généraliste
-            diagnosis.append("Condition générale à préciser. ");
+            diagnosis.append("Une condition générale à préciser. ");
         }
 
         // Recommandations générales
-        diagnosis.append("Recommandations: ");
+        diagnosis.append("\n\nRecommandations: ");
 
         if (medicalHistory != null && !medicalHistory.isEmpty()) {
             diagnosis.append("Compte tenu de vos antécédents médicaux, ");
@@ -471,10 +521,14 @@ public class DoctorAgent extends Agent {
                     available = false;
 
                     // Journaliser l'action
-                    gui.displayMessage("Dossier du patient reçu");
+                    gui.displayMessage("Dossier du patient reçu: " + currentPatientRecord.getPatientId());
 
                     // Afficher les informations du patient dans l'interface
                     gui.displayPatientInfo(currentPatientRecord);
+
+                    // NOUVEAU: Inviter le patient à venir dans la salle de consultation
+                    invitePatientToConsultation();
+
                 } catch (Exception e) {
                     e.printStackTrace();
                     gui.displayMessage("Erreur lors de la réception du dossier patient: " + e.getMessage());

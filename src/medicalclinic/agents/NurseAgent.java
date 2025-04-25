@@ -22,10 +22,33 @@ import com.google.gson.reflect.TypeToken;
 import medicalclinic.gui.NurseGUI;
 
 public class NurseAgent extends Agent {
-    private List<String> symptomQuestions;
+    private List<SymptomQuestion> symptomQuestions;
     private AID currentPatientAID;
     private NurseGUI gui;
     private Gson gson = new Gson();
+
+    // Classe interne pour représenter une question avec un titre et une description
+    private static class SymptomQuestion {
+        private String id;
+        private String title;
+        private String description;
+        private boolean required;
+        private String category;
+
+        public SymptomQuestion(String id, String title, String description, boolean required, String category) {
+            this.id = id;
+            this.title = title;
+            this.description = description;
+            this.required = required;
+            this.category = category;
+        }
+
+        public String getId() { return id; }
+        public String getTitle() { return title; }
+        public String getDescription() { return description; }
+        public boolean isRequired() { return required; }
+        public String getCategory() { return category; }
+    }
 
     @Override
     protected void setup() {
@@ -60,15 +83,130 @@ public class NurseAgent extends Agent {
         gui.displayMessage("Agent Infirmier démarré et prêt");
     }
 
-    // Initialise les questions standard sur les symptômes
+    // Initialise les questions détaillées sur les symptômes
     private void initializeSymptomQuestions() {
-        symptomQuestions.add("Depuis quand ressentez-vous ces symptômes ?");
-        symptomQuestions.add("Avez-vous de la fièvre ? Si oui, quelle est votre température ?");
-        symptomQuestions.add("Ressentez-vous des douleurs ? Si oui, où sont-elles localisées ?");
-        symptomQuestions.add("Avez-vous des difficultés à respirer ?");
-        symptomQuestions.add("Avez-vous observé des changements dans votre appétit ou votre poids ?");
-        symptomQuestions.add("Prenez-vous des médicaments actuellement ? Si oui, lesquels ?");
-        symptomQuestions.add("Avez-vous des allergies connues ?");
+        // Questions générales
+        symptomQuestions.add(new SymptomQuestion(
+            "symptomDuration",
+            "Durée des symptômes",
+            "Depuis quand ressentez-vous ces symptômes ?",
+            true,
+            "Général"));
+
+        symptomQuestions.add(new SymptomQuestion(
+            "mainSymptoms",
+            "Symptômes principaux",
+            "Quels sont vos symptômes principaux ? Décrivez-les de façon précise.",
+            true,
+            "Général"));
+
+        symptomQuestions.add(new SymptomQuestion(
+            "painLocation",
+            "Localisation des douleurs",
+            "Si vous ressentez des douleurs, où sont-elles localisées précisément ?",
+            true,
+            "Douleur"));
+
+        symptomQuestions.add(new SymptomQuestion(
+            "painIntensity",
+            "Intensité de la douleur",
+            "Sur une échelle de 1 à 10, quelle est l'intensité de votre douleur ?",
+            true,
+            "Douleur"));
+
+        // Symptômes corporels
+        symptomQuestions.add(new SymptomQuestion(
+            "fever",
+            "Fièvre",
+            "Avez-vous de la fièvre ? Si oui, quelle est votre température ?",
+            true,
+            "Température"));
+
+        symptomQuestions.add(new SymptomQuestion(
+            "breathing",
+            "Respiration",
+            "Avez-vous des difficultés à respirer ? Si oui, dans quelles circonstances ?",
+            true,
+            "Respiratoire"));
+
+        symptomQuestions.add(new SymptomQuestion(
+            "coughing",
+            "Toux",
+            "Avez-vous de la toux ? Si oui, est-elle sèche ou grasse ? Y a-t-il des expectorations ?",
+            true,
+            "Respiratoire"));
+
+        symptomQuestions.add(new SymptomQuestion(
+            "digestive",
+            "Problèmes digestifs",
+            "Avez-vous des problèmes digestifs (nausées, vomissements, diarrhée, constipation) ?",
+            true,
+            "Digestif"));
+
+        symptomQuestions.add(new SymptomQuestion(
+            "skin",
+            "Manifestations cutanées",
+            "Avez-vous remarqué des changements au niveau de votre peau (éruptions, démangeaisons) ?",
+            true,
+            "Dermatologique"));
+
+        // Facteurs influents
+        symptomQuestions.add(new SymptomQuestion(
+            "allergies",
+            "Allergies",
+            "Avez-vous des allergies connues ? Si oui, lesquelles ?",
+            true,
+            "Médical"));
+
+        symptomQuestions.add(new SymptomQuestion(
+            "currentMedications",
+            "Médicaments actuels",
+            "Prenez-vous des médicaments actuellement ? Si oui, lesquels ?",
+            true,
+            "Médical"));
+
+        symptomQuestions.add(new SymptomQuestion(
+            "recentTravel",
+            "Voyages récents",
+            "Avez-vous voyagé récemment ? Si oui, où et quand ?",
+            true,
+            "Facteurs de risque"));
+
+        symptomQuestions.add(new SymptomQuestion(
+            "chronic",
+            "Maladies chroniques",
+            "Souffrez-vous de maladies chroniques (diabète, hypertension, etc.) ?",
+            true,
+            "Médical"));
+
+        // Questions spécifiques
+        symptomQuestions.add(new SymptomQuestion(
+            "weightChange",
+            "Changement de poids",
+            "Avez-vous observé des changements dans votre poids récemment ?",
+            true,
+            "Général"));
+
+        symptomQuestions.add(new SymptomQuestion(
+            "sleeping",
+            "Troubles du sommeil",
+            "Avez-vous des problèmes de sommeil ? Si oui, lesquels ?",
+            true,
+            "Neurologique"));
+
+        symptomQuestions.add(new SymptomQuestion(
+            "headache",
+            "Maux de tête",
+            "Souffrez-vous de maux de tête ? Si oui, quelle est leur localisation et intensité ?",
+            true,
+            "Neurologique"));
+
+        symptomQuestions.add(new SymptomQuestion(
+            "additionalInfo",
+            "Informations supplémentaires",
+            "Y a-t-il d'autres symptômes ou informations que vous souhaitez mentionner ?",
+            false,
+            "Général"));
     }
 
     // Salue le patient
@@ -79,12 +217,14 @@ public class NurseAgent extends Agent {
         // Créer et envoyer le message de salutation
         ACLMessage msg = new ACLMessage(ACLMessage.INFORM);
         msg.addReceiver(patientAID);
-        msg.setContent("Bonjour, je suis l'infirmier(ère). Je vais vous poser quelques questions pour mieux comprendre vos symptômes.");
+        msg.setContent("Bonjour, je suis l'infirmier(ère). Je vais vous poser quelques questions pour mieux comprendre vos symptômes et établir un premier bilan de santé. Veuillez répondre à toutes les questions de manière précise pour que nous puissions vous orienter vers le médecin approprié.");
         msg.setConversationId("nurse-greeting");
         send(msg);
 
         // Journaliser l'action
         gui.displayMessage("Patient " + patientAID.getLocalName() + " salué");
+        gui.setCurrentPatient(patientAID.getLocalName());
+        gui.setStatus("Consultation en cours");
     }
 
     // Pose les questions sur les symptômes
@@ -101,12 +241,13 @@ public class NurseAgent extends Agent {
         JsonArray fields = new JsonArray();
 
         // Ajouter chaque question comme un champ du formulaire
-        for (int i = 0; i < symptomQuestions.size(); i++) {
+        for (SymptomQuestion question : symptomQuestions) {
             JsonObject field = new JsonObject();
-            field.addProperty("name", "question" + i);
-            field.addProperty("label", symptomQuestions.get(i));
+            field.addProperty("name", question.getId());
+            field.addProperty("label", question.getTitle() + " : " + question.getDescription());
             field.addProperty("type", "text");
-            field.addProperty("required", true);
+            field.addProperty("required", question.isRequired());
+            field.addProperty("category", question.getCategory());
             fields.add(field);
         }
 
@@ -124,17 +265,19 @@ public class NurseAgent extends Agent {
         addBehaviour(new WaitForAnswersBehaviour());
     }
 
-    // Vérifie si toutes les questions ont été répondues
+    // Vérifie si toutes les questions requises ont été répondues
     private boolean verifyAllQuestionsAnswered(HashMap<String, String> answers) {
-        // Vérifier chaque question
-        for (int i = 0; i < symptomQuestions.size(); i++) {
-            String key = "question" + i;
-            // Vérifier si la réponse existe et n'est pas vide
-            if (!answers.containsKey(key) || answers.get(key).isEmpty()) {
-                return false;
+        // Vérifier chaque question requise
+        for (SymptomQuestion question : symptomQuestions) {
+            if (question.isRequired()) {
+                String key = question.getId();
+                // Vérifier si la réponse existe et n'est pas vide
+                if (!answers.containsKey(key) || answers.get(key).isEmpty()) {
+                    return false;
+                }
             }
         }
-        // Toutes les questions ont été répondues
+        // Toutes les questions requises ont été répondues
         return true;
     }
 
@@ -188,12 +331,14 @@ public class NurseAgent extends Agent {
         // Créer et configurer le message
         ACLMessage msg = new ACLMessage(ACLMessage.INFORM);
         msg.addReceiver(currentPatientAID);
-        msg.setContent("Merci pour vos réponses. Vos informations ont été transmises à la réceptionniste. Veuillez attendre qu'un médecin soit disponible.");
+        msg.setContent("Merci pour vos réponses. J'ai bien noté toutes vos informations sur les symptômes que vous présentez. Ces informations ont été transmises à la réceptionniste qui va maintenant vous orienter vers le médecin le plus approprié pour votre cas. Veuillez patienter dans la salle d'attente jusqu'à ce que la réceptionniste vous appelle.");
         msg.setConversationId("nurse-feedback");
         send(msg);
 
         // Journaliser l'action
         gui.displayMessage("Patient informé que ses informations ont été transmises");
+        gui.setStatus("En attente");
+        gui.setCurrentPatient(null);
     }
 
     // Analyse les réponses pour identifier des urgences potentielles
@@ -202,23 +347,35 @@ public class NurseAgent extends Agent {
         boolean urgencePotentielle = false;
 
         // Parcourir toutes les réponses
-        for (String question : answers.keySet()) {
-            String answer = answers.get(question).toLowerCase();
+        for (String questionId : answers.keySet()) {
+            String answer = answers.get(questionId).toLowerCase();
 
             // Vérifier si les réponses contiennent des mots-clés indiquant une urgence
             if (answer.contains("insupportable") ||
                 answer.contains("extrême") ||
                 answer.contains("très forte douleur") ||
-                (answer.contains("fièvre") && answer.contains("40")) ||
-                (answer.contains("difficulté à respirer") && answer.contains("grave"))) {
+                (questionId.equals("fever") && (answer.contains("40") || answer.contains("41") || answer.contains("42"))) ||
+                (questionId.equals("breathing") && (answer.contains("très difficile") || answer.contains("impossible"))) ||
+                (questionId.equals("painIntensity") && (answer.contains("9") || answer.contains("10"))) ||
+                answer.contains("sang") && (questionId.equals("coughing") || questionId.equals("digestive"))) {
 
                 urgencePotentielle = true;
-                gui.displayMessage("ALERTE: Situation d'urgence potentielle détectée!");
+                gui.displayMessage("ALERTE: Situation d'urgence potentielle détectée - " + getQuestionTitleById(questionId) + ": " + answer);
                 break;
             }
         }
 
         return urgencePotentielle;
+    }
+
+    // Retourne le titre d'une question à partir de son ID
+    private String getQuestionTitleById(String id) {
+        for (SymptomQuestion question : symptomQuestions) {
+            if (question.getId().equals(id)) {
+                return question.getTitle();
+            }
+        }
+        return id;
     }
 
     // Notifie la réceptionniste d'une urgence
@@ -257,39 +414,24 @@ public class NurseAgent extends Agent {
         // Créer une structure pour les symptômes catégorisés
         HashMap<String, String> categorizedSymptoms = new HashMap<>();
 
-        // Catégories standard de symptômes
-        String[] categories = {"Douleur", "Respiratoire", "Digestif", "Température", "Allergie", "Médicaments actuels", "Durée"};
-
         // Initialiser toutes les catégories comme vides
-        for (String category : categories) {
-            categorizedSymptoms.put(category, "");
-        }
+        for (SymptomQuestion question : symptomQuestions) {
+            String category = question.getCategory();
+            if (!categorizedSymptoms.containsKey(category)) {
+                categorizedSymptoms.put(category, "");
+            }
 
-        // Parcourir toutes les réponses et les affecter à des catégories
-        for (String question : answers.keySet()) {
-            String answer = answers.get(question);
-            String questionLower = question.toLowerCase();
+            // Ajouter la réponse si elle existe
+            String key = question.getId();
+            if (answers.containsKey(key) && !answers.get(key).isEmpty()) {
+                String currentValue = categorizedSymptoms.get(category);
+                String newValue = question.getTitle() + ": " + answers.get(key);
 
-            if (questionLower.contains("douleur") || questionLower.contains("mal")) {
-                categorizedSymptoms.put("Douleur", answer);
-            }
-            else if (questionLower.contains("respir") || questionLower.contains("toux")) {
-                categorizedSymptoms.put("Respiratoire", answer);
-            }
-            else if (questionLower.contains("digest") || questionLower.contains("estomac") || questionLower.contains("nausée")) {
-                categorizedSymptoms.put("Digestif", answer);
-            }
-            else if (questionLower.contains("fièvre") || questionLower.contains("tempér")) {
-                categorizedSymptoms.put("Température", answer);
-            }
-            else if (questionLower.contains("allergi")) {
-                categorizedSymptoms.put("Allergie", answer);
-            }
-            else if (questionLower.contains("médic")) {
-                categorizedSymptoms.put("Médicaments actuels", answer);
-            }
-            else if (questionLower.contains("quand") || questionLower.contains("depuis")) {
-                categorizedSymptoms.put("Durée", answer);
+                if (currentValue.isEmpty()) {
+                    categorizedSymptoms.put(category, newValue);
+                } else {
+                    categorizedSymptoms.put(category, currentValue + " | " + newValue);
+                }
             }
         }
 
@@ -356,8 +498,12 @@ public class NurseAgent extends Agent {
                         gui.displayMessage("Réponses reçues et traitées");
 
                         // Afficher les réponses dans l'interface
+                        gui.displayMessage("Résumé des réponses du patient :");
                         for (String key : answers.keySet()) {
-                            gui.displayMessage(key + ": " + answers.get(key));
+                            if (!key.equals("patientId")) {
+                                String questionTitle = getQuestionTitleById(key);
+                                gui.displayMessage("- " + questionTitle + " : " + answers.get(key));
+                            }
                         }
 
                         // Réinitialiser le patient actuel
@@ -369,7 +515,7 @@ public class NurseAgent extends Agent {
                         // Demander au patient de compléter toutes les questions
                         ACLMessage response = new ACLMessage(ACLMessage.INFORM);
                         response.addReceiver(currentPatientAID);
-                        response.setContent("Veuillez répondre à toutes les questions s'il vous plaît.");
+                        response.setContent("Veuillez répondre à toutes les questions requises s'il vous plaît. Ces informations sont importantes pour votre prise en charge.");
                         response.setConversationId("nurse-feedback");
                         send(response);
 
