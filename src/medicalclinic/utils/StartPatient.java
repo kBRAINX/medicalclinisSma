@@ -14,7 +14,6 @@ import java.awt.event.ActionListener;
 import java.util.UUID;
 
 import medicalclinic.gui.PatientGUI;
-import medicalclinic.agents.PatientAgent;
 
 /**
  * Classe utilitaire pour démarrer un nouveau patient
@@ -28,7 +27,7 @@ public class StartPatient {
         // Interface pour obtenir le nom du patient
         JFrame frame = new JFrame("Nouveau Patient");
         frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-        frame.setSize(400, 200);
+        frame.setSize(450, 250);
         frame.setLocationRelativeTo(null);
 
         JPanel panel = new JPanel(new BorderLayout(10, 10));
@@ -36,10 +35,10 @@ public class StartPatient {
         panel.setBackground(new Color(240, 240, 250));
 
         JLabel titleLabel = new JLabel("Enregistrement d'un nouveau patient");
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 16));
+        titleLabel.setFont(new Font("Arial", Font.BOLD, 18));
         titleLabel.setHorizontalAlignment(SwingConstants.CENTER);
 
-        JPanel formPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 10));
+        JPanel formPanel = new JPanel(new GridLayout(3, 2, 10, 10));
         formPanel.setBackground(new Color(240, 240, 250));
 
         JLabel nameLabel = new JLabel("Votre nom:");
@@ -47,6 +46,10 @@ public class StartPatient {
 
         JTextField nameField = new JTextField(20);
         nameField.setFont(new Font("Arial", Font.PLAIN, 14));
+
+        JLabel infoLabel = new JLabel("Ces informations serviront uniquement à créer votre dossier médical");
+        infoLabel.setFont(new Font("Arial", Font.ITALIC, 12));
+        infoLabel.setForeground(Color.GRAY);
 
         JButton submitButton = new JButton("Lancer");
         submitButton.setFont(new Font("Arial", Font.BOLD, 14));
@@ -56,6 +59,8 @@ public class StartPatient {
 
         formPanel.add(nameLabel);
         formPanel.add(nameField);
+        formPanel.add(new JLabel()); // Espace vide
+        formPanel.add(infoLabel);
 
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
         buttonPanel.setBackground(new Color(240, 240, 250));
@@ -84,7 +89,7 @@ public class StartPatient {
                 // Fermer la fenêtre de dialogue
                 frame.dispose();
 
-                // Lancer l'agent Patient dans un thread séparé
+                // Lancer l'agent Patient
                 SwingUtilities.invokeLater(new Runnable() {
                     @Override
                     public void run() {

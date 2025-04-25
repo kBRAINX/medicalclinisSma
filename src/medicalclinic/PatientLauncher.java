@@ -11,6 +11,9 @@ import medicalclinic.gui.PatientGUI;
 import javax.swing.*;
 import java.util.UUID;
 
+/**
+ * Classe de lancement d'un agent patient individuel
+ */
 public class PatientLauncher {
 
     public static void main(String[] args) {
@@ -36,18 +39,22 @@ public class PatientLauncher {
         ContainerController container = runtime.createAgentContainer(profile);
 
         try {
-            // Créer l'agent patient
+            // Créer d'abord l'interface graphique du patient
+            PatientGUI patientGUI = new PatientGUI(patientId);
+
+            // Créer l'agent patient avec l'interface comme argument
             AgentController patientAgent = container.createNewAgent(
                 patientId,
                 "medicalclinic.agents.PatientAgent",
-                null);
+                new Object[] { patientGUI });
+
+            // Afficher l'interface graphique
+            patientGUI.setVisible(true);
+
+            // Démarrer l'agent patient
             patientAgent.start();
 
-            // Lancer l'interface graphique du patient
-            SwingUtilities.invokeLater(() -> {
-                PatientGUI patientGUI = new PatientGUI(patientId);
-                patientGUI.setVisible(true);
-            });
+            System.out.println("Agent patient " + patientId + " démarré avec succès.");
 
         } catch (StaleProxyException e) {
             e.printStackTrace();
