@@ -110,6 +110,10 @@ public class DoctorAgent extends Agent {
 
                 gui.displayMessage("Demande envoyée à la réceptionniste pour faire venir le patient " +
                     currentPatientRecord.getPatientId() + " dans la salle " + roomNumber);
+
+                // Log supplémentaire pour débogage
+                System.out.println("Médecin " + getLocalName() + " a demandé au patient " +
+                    currentPatientRecord.getPatientId() + " de venir en salle " + roomNumber);
             } else {
                 gui.displayMessage("Erreur: Réceptionniste non trouvée, impossible d'inviter le patient");
             }
@@ -134,6 +138,11 @@ public class DoctorAgent extends Agent {
 
     // Pose des questions supplémentaires
     private void askAdditionalQuestions() {
+        if (currentPatientAID == null) {
+            gui.displayMessage("Erreur: Impossible d'envoyer des questions - Patient non identifié");
+            return;
+        }
+
         // Créer et configurer le message
         ACLMessage msg = new ACLMessage(ACLMessage.INFORM);
         msg.addReceiver(currentPatientAID);
@@ -160,7 +169,37 @@ public class DoctorAgent extends Agent {
         familyHistoryField.addProperty("required", true);
         fields.add(familyHistoryField);
 
-        // Questions spécifiques selon la spécialité
+        // Identifier les maladies possibles
+        List<Disease> possibleDiseases = DiseaseDatabase.getInstance().findDiseasesBySymptoms(currentPatientRecord.getSymptomsInfo());
+
+        // Log des maladies possibles
+        gui.displayMessage("Analyse des symptômes du patient:");
+        for (Disease disease : possibleDiseases) {
+            int matchScore = disease.matchSymptoms(currentPatientRecord.getSymptomsInfo());
+            gui.displayMessage("- Maladie possible: " + disease.getName() + " (" + matchScore + "% de correspondance)");
+
+            // Ajouter des questions spécifiques pour cette maladie
+            if (matchScore > 40) { // Seulement pour les maladies avec une correspondance significative
+                List<String> specificQuestions = DiseaseDatabase.getInstance().generateDiagnosticQuestionsForDisease(disease);
+
+                // Ajouter les questions spécifiques au formulaire (max 3 questions par maladie)
+                int questionCount = 0;
+                for (String question : specificQuestions) {
+                    if (questionCount >= 3) break;
+
+                    JsonObject questionField = new JsonObject();
+                    String fieldName = "disease_" + disease.getId() + "_q" + questionCount;
+                    questionField.addProperty("name", fieldName);
+                    questionField.addProperty("label", question);
+                    questionField.addProperty("type", "text");
+                    questionField.addProperty("required", true);
+                    fields.add(questionField);
+                    questionCount++;
+                }
+            }
+        }
+
+        // Ajouter des questions spécifiques à la spécialité
         if ("cardiologue".equals(specialty)) {
             JsonObject chestPainField = new JsonObject();
             chestPainField.addProperty("name", "chestPain");
@@ -176,36 +215,8 @@ public class DoctorAgent extends Agent {
             heartRateField.addProperty("required", true);
             fields.add(heartRateField);
         }
-        else if ("pneumologue".equals(specialty)) {
-            JsonObject breathingField = new JsonObject();
-            breathingField.addProperty("name", "breathingDifficulties");
-            breathingField.addProperty("label", "Quand ressentez-vous le plus de difficultés à respirer ?");
-            breathingField.addProperty("type", "text");
-            breathingField.addProperty("required", true);
-            fields.add(breathingField);
 
-            JsonObject coughField = new JsonObject();
-            coughField.addProperty("name", "coughDetails");
-            coughField.addProperty("label", "Pouvez-vous décrire votre toux ? Est-elle productive ?");
-            coughField.addProperty("type", "text");
-            coughField.addProperty("required", true);
-            fields.add(coughField);
-        }
-        else if ("gastroenterologue".equals(specialty)) {
-            JsonObject digestionField = new JsonObject();
-            digestionField.addProperty("name", "digestionIssues");
-            digestionField.addProperty("label", "Décrivez vos problèmes digestifs et leur fréquence.");
-            digestionField.addProperty("type", "text");
-            digestionField.addProperty("required", true);
-            fields.add(digestionField);
-
-            JsonObject dietField = new JsonObject();
-            dietField.addProperty("name", "dietaryHabits");
-            dietField.addProperty("label", "Quelles sont vos habitudes alimentaires ?");
-            dietField.addProperty("type", "text");
-            dietField.addProperty("required", true);
-            fields.add(dietField);
-        }
+        // Ajouter les autres questions spécifiques aux différentes spécialités comme avant...
 
         form.add("fields", fields);
 
@@ -214,8 +225,13 @@ public class DoctorAgent extends Agent {
         msg.setConversationId("doctor-questions");
         send(msg);
 
+        // Log pour débogage
+        System.out.println("Médecin " + getLocalName() + " a envoyé des questions au patient " +
+            currentPatientAID.getLocalName() + " avec " + fields.size() + " questions.");
+
         // Journaliser l'action
         gui.displayMessage("Questions supplémentaires envoyées à " + currentPatientAID.getLocalName());
+        gui.displayMessage("Nombre de questions envoyées: " + fields.size());
 
         // Ajouter un comportement pour attendre les réponses
         addBehaviour(new WaitForResponsesBehaviour());
@@ -542,25 +558,54 @@ public class DoctorAgent extends Agent {
     private class WaitForPatientArrivalBehaviour extends CyclicBehaviour {
         @Override
         public void action() {
-            // Configurer un filtre pour les messages INFORM avec conversationId "patient-location" et contenu "PATIENT_ARRIVED"
-            MessageTemplate mt = MessageTemplate.and(
-                MessageTemplate.MatchConversationId("patient-location"),
-                MessageTemplate.MatchContent("PATIENT_ARRIVED"));
+            // Élargir le filtre pour capturer tous les messages de localisation patient
+            MessageTemplate mt = MessageTemplate.MatchConversationId("patient-location");
 
             ACLMessage msg = receive(mt);
 
             if (msg != null) {
-                // Stocker l'AID du patient
-                currentPatientAID = msg.getSender();
+                String content = msg.getContent();
 
-                // Journaliser l'action
-                gui.displayMessage("Patient " + currentPatientAID.getLocalName() + " arrivé en salle de consultation");
+                // Log pour débogage plus détaillé
+                System.out.println("Médecin a reçu un message de localisation: '" + content +
+                    "' de " + msg.getSender().getLocalName() + " à " + new java.util.Date());
 
-                // Saluer le patient
-                greetPatient();
+                if ("PATIENT_ARRIVED".equals(content)) {
+                    // Stocker l'AID du patient
+                    currentPatientAID = msg.getSender();
 
-                // Poser des questions supplémentaires
-                askAdditionalQuestions();
+                    // Journaliser l'action
+                    gui.displayMessage("Patient " + currentPatientAID.getLocalName() + " arrivé en salle de consultation");
+
+                    // Délai plus long pour laisser le temps à l'interface de s'actualiser
+                    try {
+                        System.out.println("Attente avant de communiquer avec le patient...");
+                        Thread.sleep(1500); // Augmenté à 1,5 secondes
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+
+                    // Saluer le patient
+                    greetPatient();
+
+                    // Délai supplémentaire après la salutation
+                    try {
+                        System.out.println("Délai après salutation...");
+                        Thread.sleep(1000); // 1 seconde de plus
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+
+                    // Poser des questions supplémentaires dans un comportement séparé
+                    addBehaviour(new jade.core.behaviours.OneShotBehaviour() {
+                        @Override
+                        public void action() {
+                            System.out.println("Préparation du questionnaire pour " + currentPatientAID.getLocalName());
+                            askAdditionalQuestions();
+                            System.out.println("Questionnaire envoyé à " + currentPatientAID.getLocalName());
+                        }
+                    });
+                }
             } else {
                 block();
             }

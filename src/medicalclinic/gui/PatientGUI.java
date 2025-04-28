@@ -270,7 +270,38 @@ public class PatientGUI extends JFrame {
 
     // Display questions from the doctor
     public void displayDoctorQuestions(String questionsJson) {
-        displayForm("Questionnaire du Médecin", questionsJson);
+        System.out.println("PatientGUI: Affichage des questions du médecin");
+        System.out.println("Longueur du JSON reçu: " + questionsJson.length());
+
+        // Vérifier si le JSON semble valide
+        if (questionsJson.contains("formId") && questionsJson.contains("fields")) {
+            try {
+                // Afficher une notification visible avant d'afficher le formulaire
+                JOptionPane.showMessageDialog(this,
+                    "Le médecin vous a envoyé un questionnaire à remplir.",
+                    "Questionnaire médical",
+                    JOptionPane.INFORMATION_MESSAGE);
+
+                // Appeler la méthode displayForm
+                displayForm("Questionnaire du Médecin", questionsJson);
+
+                // Log de confirmation
+                System.out.println("PatientGUI: Formulaire médical affiché avec succès");
+            } catch (Exception e) {
+                System.err.println("Erreur lors de l'affichage du formulaire médical: " + e.getMessage());
+                e.printStackTrace();
+
+                // En cas d'erreur, afficher un message d'erreur
+                JOptionPane.showMessageDialog(this,
+                    "Une erreur est survenue lors de l'affichage du questionnaire.\n" + e.getMessage(),
+                    "Erreur d'affichage",
+                    JOptionPane.ERROR_MESSAGE);
+            }
+        } else {
+            System.err.println("Format JSON invalide pour les questions du médecin");
+            System.err.println("Début du JSON reçu: " +
+                (questionsJson.length() > 100 ? questionsJson.substring(0, 100) + "..." : questionsJson));
+        }
     }
 
     // Generic method to display a form

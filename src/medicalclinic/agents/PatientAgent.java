@@ -8,7 +8,6 @@ import jade.domain.FIPAAgentManagement.DFAgentDescription;
 import jade.domain.FIPAAgentManagement.ServiceDescription;
 import jade.domain.FIPAException;
 import jade.lang.acl.ACLMessage;
-import jade.lang.acl.MessageTemplate;
 
 import java.util.HashMap;
 
@@ -32,6 +31,9 @@ public class PatientAgent extends Agent {
     private String location;
     private PatientGUI gui;
     private Gson gson = new Gson();
+
+    // Ajouter un flag pour suivre si le patient a envoyé son message d'arrivée
+    private boolean hasNotifiedArrival = false;
 
     @Override
     protected void setup() {
@@ -219,19 +221,31 @@ public class PatientAgent extends Agent {
     // Déplace le patient vers la salle du médecin
     public void moveToDoctorRoom(int roomNumber) {
         if (doctorAID != null) {
-            // Informer le médecin de l'arrivée
-            ACLMessage msg = new ACLMessage(ACLMessage.INFORM);
-            msg.addReceiver(doctorAID);
-            msg.setContent("PATIENT_ARRIVED");
-            msg.setConversationId("patient-location");
-            send(msg);
-
             // Mettre à jour l'emplacement
             location = "Salle de consultation " + roomNumber;
             if (gui != null) {
                 gui.updateLocation(location);
                 gui.displayMessage("Vous entrez dans la salle de consultation " + roomNumber);
             }
+
+            // Réinitialiser le flag pour permettre une nouvelle notification d'arrivée
+            hasNotifiedArrival = false;
+
+            // Envoyer immédiatement la notification d'arrivée
+            ACLMessage msg = new ACLMessage(ACLMessage.INFORM);
+            msg.addReceiver(doctorAID);
+            msg.setContent("PATIENT_ARRIVED");
+            msg.setConversationId("patient-location");
+            send(msg);
+            hasNotifiedArrival = true;
+
+            if (gui != null) {
+                gui.displayMessage("Vous informez le médecin de votre arrivée...");
+            }
+
+            // Log pour débogage
+            System.out.println("Patient " + getLocalName() + " a envoyé une notification d'arrivée au médecin " +
+                doctorAID.getLocalName());
         } else {
             if (gui != null) {
                 gui.displayMessage("Erreur: Impossible de trouver le médecin - Veuillez retourner à l'accueil");
@@ -266,6 +280,10 @@ public class PatientAgent extends Agent {
             if (msg != null) {
                 String content = msg.getContent();
                 String conversationId = msg.getConversationId();
+
+                // Tracer le message reçu pour le déboguer
+                System.out.println("Patient " + id + " a reçu un message: ConversationId = " +
+                    conversationId + ", Content = " + (content.length() > 50 ? content.substring(0, 50) + "..." : content));
 
                 // Traiter selon le type de conversation
                 if ("welcome".equals(conversationId)) {
@@ -356,6 +374,26 @@ public class PatientAgent extends Agent {
         // Questions du médecin
         private void handleDoctorQuestionsMessage(String content) {
             if (gui != null) {
+                // Afficher explicitement que le médecin envoie un questionnaire
+                gui.displayMessage("Le médecin vous envoie un questionnaire médical à remplir");
+
+                // Log pour débogage
+                System.out.println("Patient " + myAgent.getLocalName() + " a reçu un questionnaire du médecin");
+
+                // Analyse du formulaire pour vérifier qu'il est bien formé
+                try {
+                    JsonObject formObj = JsonParser.parseString(content).getAsJsonObject();
+                    if (formObj.has("formId") && formObj.has("fields")) {
+                        System.out.println("Formulaire valide reçu: " + formObj.get("formId").getAsString() +
+                            " avec " + formObj.getAsJsonArray("fields").size() + " champs");
+                    } else {
+                        System.out.println("Formulaire reçu mais structure invalide: " + content.substring(0, 100));
+                    }
+                } catch (Exception e) {
+                    System.out.println("Erreur d'analyse du formulaire: " + e.getMessage() + " | Contenu: " +
+                        content.substring(0, 100));
+                }
+
                 gui.displayDoctorQuestions(content);
             }
         }
@@ -406,6 +444,20 @@ public class PatientAgent extends Agent {
                 } else if (conversationId.contains("doctor")) {
                     gui.displayMessage("Médecin: " + content);
                     doctorAID = sender;
+
+                    // Si c'est une salutation du médecin et que nous sommes dans sa salle, vérifier si nous avons notifié notre arrivée
+                    if (conversationId.equals("doctor-greeting") && location.startsWith("Salle de consultation") && !hasNotifiedArrival) {
+                        // Le médecin nous a salué mais pense peut-être que nous venons d'arriver
+                        // Envoyer une notification d'arrivée au cas où
+                        ACLMessage notificationMsg = new ACLMessage(ACLMessage.INFORM);
+                        notificationMsg.addReceiver(doctorAID);
+                        notificationMsg.setContent("PATIENT_ARRIVED");
+                        notificationMsg.setConversationId("patient-location");
+                        send(notificationMsg);
+                        hasNotifiedArrival = true;
+
+                        gui.displayMessage("(Notification d'arrivée envoyée au médecin)");
+                    }
                 } else if (conversationId.contains("receptionist")) {
                     gui.displayMessage("Réceptionniste: " + content);
                 }
